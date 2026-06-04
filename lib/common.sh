@@ -65,6 +65,13 @@ log_ok() { log_line OK "$@"; }
 
 die() {
   log_error "$*"
+  if [[ "${ROLLBACK_READY:-no}" == "yes" ]]; then
+    run_rollback
+    log_error "Execution failed. Review log: $LOG_FILE"
+    if [[ -n "${ROLLBACK_FILE:-}" ]]; then
+      log_error "Manual rollback script retained at: $ROLLBACK_FILE"
+    fi
+  fi
   exit 1
 }
 

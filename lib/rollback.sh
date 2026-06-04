@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 ROLLBACK_FILE=""
+ROLLBACK_READY="no"
 LOCK_FD=9
 
 init_lock() {
@@ -32,6 +33,7 @@ set -Eeuo pipefail
 LOG_FILE="${LOG_FILE:-/tmp/vps-init-rollback.log}"
 log() { printf '%s [ROLLBACK] %s\n' "\$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "\$*" | tee -a "\$LOG_FILE" >&2; }
 EOF
+  ROLLBACK_READY="yes"
 }
 
 add_rollback() {
