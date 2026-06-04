@@ -57,7 +57,7 @@ For Cloudflare Tunnel:
 CLOUDFLARED_TOKEN='token-from-cloudflare' sudo -E bash start.sh --yes --install-cloudflared
 ```
 
-The token is not written to config files by this project and is redacted from command logging.
+In interactive mode, selecting Cloudflare Tunnel prompts for the token with hidden input. In non-interactive mode, `CLOUDFLARED_TOKEN` is required. The token is not written to config files by this project and is redacted from command logging.
 
 ## What It Changes
 

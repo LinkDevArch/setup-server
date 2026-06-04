@@ -136,6 +136,23 @@ prompt_yes_no() {
   fi
 }
 
+prompt_secret_if_empty() {
+  local var_name="$1"
+  local prompt="$2"
+  local current="${!var_name:-}"
+  local answer=""
+
+  if [[ -n "$current" ]]; then
+    return 0
+  fi
+
+  read -r -s -p "$prompt: " answer
+  printf '\n'
+  if [[ -n "$answer" ]]; then
+    printf -v "$var_name" '%s' "$answer"
+  fi
+}
+
 load_or_prompt_config() {
   if [[ "$NONINTERACTIVE" == "yes" ]]; then
     return 0
@@ -151,6 +168,10 @@ load_or_prompt_config() {
 
   if is_yes "$INSTALL_DOKPLOY"; then
     INSTALL_DOCKER="yes"
+  fi
+
+  if is_yes "$INSTALL_CLOUDFLARED"; then
+    prompt_secret_if_empty CLOUDFLARED_TOKEN "Cloudflare Tunnel token"
   fi
 }
 
@@ -171,7 +192,10 @@ validate_config() {
   is_yes "$INSTALL_CLOUDFLARED" || is_no "$INSTALL_CLOUDFLARED" || die "INSTALL_CLOUDFLARED must be yes/no"
 
   if is_yes "$INSTALL_CLOUDFLARED" && [[ -z "${CLOUDFLARED_TOKEN:-}" ]]; then
-    die "CLOUDFLARED_TOKEN must be provided in environment for cloudflared service install"
+    if [[ "$NONINTERACTIVE" == "yes" ]]; then
+      die "CLOUDFLARED_TOKEN must be provided in environment for non-interactive cloudflared install"
+    fi
+    die "Cloudflare Tunnel token is required when Cloudflare Tunnel is selected"
   fi
 }
 

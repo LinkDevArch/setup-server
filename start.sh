@@ -20,6 +20,7 @@ source "$PROJECT_DIR/lib/postcheck.sh"
 
 main() {
   bootstrap_config "$@"
+  validate_root
   init_logging
   init_lock
   init_rollback
@@ -30,7 +31,6 @@ main() {
   print_header
   log_info "Log file: $LOG_FILE"
 
-  validate_root
   validate_ubuntu_2404
   detect_architecture
   load_or_prompt_config
