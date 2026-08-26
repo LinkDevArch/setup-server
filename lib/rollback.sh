@@ -146,6 +146,8 @@ run_rollback() {
     else
       log_error "Rollback had warnings/errors. Inspect $LOG_FILE and $ROLLBACK_FILE"
     fi
+    # Clear checkpoints so that reconciled state is re-applied correctly on retry
+    rm -rf "$STATE_DIR/checkpoints"
   else
     log_warn "No rollback actions registered"
   fi

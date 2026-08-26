@@ -51,10 +51,10 @@ stage_dokploy() {
     log_info "Using advertise address for Dokploy Swarm: $adv_ip"
   fi
 
-  # Ensure daemon.json does not have live-restore (which breaks Docker Swarm)
-  if [[ -f /etc/docker/daemon.json ]] && grep -q "live-restore" /etc/docker/daemon.json; then
-    log_info "Reconfiguring /etc/docker/daemon.json without live-restore for Docker Swarm"
-    cat > /etc/docker/daemon.json <<'EOF'
+  # Unconditionally enforce Docker Swarm compatible daemon config and restart dockerd
+  log_info "Ensuring /etc/docker/daemon.json is configured without live-restore for Docker Swarm"
+  mkdir -p /etc/docker
+  atomic_write_file /etc/docker/daemon.json 600 root root <<'EOF'
 {
   "log-driver": "json-file",
   "log-opts": {
@@ -64,9 +64,9 @@ stage_dokploy() {
   "userland-proxy": false
 }
 EOF
-    chmod 600 /etc/docker/daemon.json
-    run_cmd systemctl restart docker
-  fi
+  run_cmd systemctl daemon-reload
+  run_cmd systemctl restart docker
+  sleep 2
 
   local install_script="/tmp/dokploy-install-$RUN_ID.sh"
   run_cmd curl -fsSL https://dokploy.com/install.sh -o "$install_script"
