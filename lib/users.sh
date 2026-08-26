@@ -53,8 +53,8 @@ stage_admin_user() {
 
   local sudoers_file="/etc/sudoers.d/90-vps-init-$NEW_ADMIN_USER"
   atomic_write_file "$sudoers_file" 440 root root <<EOF
-Defaults:$NEW_ADMIN_USER timestamp_timeout=15, insults=off
 $NEW_ADMIN_USER ALL=(ALL) NOPASSWD:ALL
+Defaults:$NEW_ADMIN_USER timestamp_timeout=15
 EOF
   run_cmd visudo -cf "$sudoers_file"
 
