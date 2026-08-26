@@ -51,6 +51,23 @@ stage_dokploy() {
     log_info "Using advertise address for Dokploy Swarm: $adv_ip"
   fi
 
+  # Ensure daemon.json does not have live-restore (which breaks Docker Swarm)
+  if [[ -f /etc/docker/daemon.json ]] && grep -q "live-restore" /etc/docker/daemon.json; then
+    log_info "Reconfiguring /etc/docker/daemon.json without live-restore for Docker Swarm"
+    cat > /etc/docker/daemon.json <<'EOF'
+{
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "3"
+  },
+  "userland-proxy": false
+}
+EOF
+    chmod 600 /etc/docker/daemon.json
+    run_cmd systemctl restart docker
+  fi
+
   local install_script="/tmp/dokploy-install-$RUN_ID.sh"
   run_cmd curl -fsSL https://dokploy.com/install.sh -o "$install_script"
   [[ -s "$install_script" ]] || die "Failed to download Dokploy installer or downloaded file is empty"
