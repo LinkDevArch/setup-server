@@ -39,10 +39,21 @@ stage_admin_user() {
     add_rollback "delete created user $NEW_ADMIN_USER" "if id '$NEW_ADMIN_USER' >/dev/null 2>&1; then userdel -r '$NEW_ADMIN_USER' || true; fi"
   fi
 
+  # Add admin user to administrative and logging groups
   run_cmd usermod -aG sudo "$NEW_ADMIN_USER"
+  if getent group adm >/dev/null 2>&1; then
+    run_cmd usermod -aG adm "$NEW_ADMIN_USER"
+  fi
+  if getent group systemd-journal >/dev/null 2>&1; then
+    run_cmd usermod -aG systemd-journal "$NEW_ADMIN_USER"
+  fi
+
+  # Restrict home directory permissions
+  chmod 700 "/home/$NEW_ADMIN_USER"
 
   local sudoers_file="/etc/sudoers.d/90-vps-init-$NEW_ADMIN_USER"
   atomic_write_file "$sudoers_file" 440 root root <<EOF
+Defaults:$NEW_ADMIN_USER timestamp_timeout=15, insults=off
 $NEW_ADMIN_USER ALL=(ALL) NOPASSWD:ALL
 EOF
   run_cmd visudo -cf "$sudoers_file"

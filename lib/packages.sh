@@ -8,16 +8,48 @@ stage_system_packages() {
 
   log_info "Installing required system packages"
   export DEBIAN_FRONTEND=noninteractive
-  run_cmd apt-get update
+  export NEEDRESTART_MODE=a
 
-  local required=(ca-certificates gnupg lsb-release openssh-server sudo ufw fail2ban)
-  local basic=(curl wget git htop tmux ncdu software-properties-common)
+  run_cmd apt-get update -y
+
+  local required=(
+    ca-certificates
+    gnupg
+    lsb-release
+    openssh-server
+    sudo
+    ufw
+    fail2ban
+    python3-systemd
+    unattended-upgrades
+    needrestart
+    update-notifier-common
+    systemd-timesyncd
+    auditd
+    audispd-plugins
+    libpam-pwquality
+    iptables
+    procps
+  )
+
+  local basic=(
+    curl
+    wget
+    git
+    htop
+    tmux
+    ncdu
+    software-properties-common
+    net-tools
+    dnsutils
+    jq
+  )
+
   if is_yes "$INSTALL_BASIC_TOOLS"; then
-    run_cmd apt-get install -y "${required[@]}" "${basic[@]}"
+    run_cmd apt-get install -y --no-install-recommends "${required[@]}" "${basic[@]}"
   else
-    run_cmd apt-get install -y "${required[@]}"
+    run_cmd apt-get install -y --no-install-recommends "${required[@]}"
   fi
 
   checkpoint packages
 }
-

@@ -6,12 +6,14 @@ stage_cloudflared() {
     return 0
   fi
 
-  log_info "Installing cloudflared from Cloudflare apt repository"
+  log_info "Installing cloudflared from official Cloudflare repository"
   export DEBIAN_FRONTEND=noninteractive
+  export NEEDRESTART_MODE=a
+
   backup_path /etc/apt/keyrings
   backup_path /etc/apt/sources.list.d
 
-  run_cmd apt-get update
+  run_cmd apt-get update -y
   run_cmd apt-get install -y curl gnupg ca-certificates
   install -m 0755 -d /etc/apt/keyrings
 
@@ -24,7 +26,7 @@ deb [arch=$DEB_ARCH signed-by=/etc/apt/keyrings/cloudflare-main.gpg] https://pkg
 EOF
 
   add_rollback "remove cloudflared apt source" "rm -f /etc/apt/sources.list.d/cloudflared.list"
-  run_cmd apt-get update
+  run_cmd apt-get update -y
   run_cmd apt-get install -y cloudflared
   run_cmd cloudflared version
 
@@ -34,6 +36,12 @@ EOF
   fi
 
   run_cmd_secret "cloudflared service install <redacted-token>" cloudflared service install "$CLOUDFLARED_TOKEN"
+
+  # Protect the generated service file containing credentials
+  if [[ -f /etc/systemd/system/cloudflared.service ]]; then
+    chmod 600 /etc/systemd/system/cloudflared.service
+  fi
+
   run_cmd systemctl daemon-reload
   run_cmd systemctl enable cloudflared
   run_cmd systemctl start cloudflared

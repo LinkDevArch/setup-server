@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 
+ROLLBACK_DIR=""
 ROLLBACK_FILE=""
 ROLLBACK_READY="no"
+ROLLBACK_STEP_COUNTER=0
 LOCK_FD=9
 
 init_lock() {
@@ -21,34 +23,84 @@ reset_checkpoints_after_success() {
 }
 
 cleanup_lock() {
-  flock -u 9 || true
+  flock -u 9 2>/dev/null || true
 }
 
 init_rollback() {
   mkdir -p "$STATE_DIR"
+  ROLLBACK_DIR="$STATE_DIR/rollback-$RUN_ID.d"
   ROLLBACK_FILE="$STATE_DIR/rollback-$RUN_ID.sh"
-  atomic_write_file "$ROLLBACK_FILE" 700 root root <<EOF
+  mkdir -p "$ROLLBACK_DIR"
+  chmod 700 "$ROLLBACK_DIR"
+
+  cat > "$ROLLBACK_FILE" <<EOF
 #!/usr/bin/env bash
-set -Eeuo pipefail
-LOG_FILE="${LOG_FILE:-/tmp/vps-init-rollback.log}"
-log() { printf '%s [ROLLBACK] %s\n' "\$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "\$*" | tee -a "\$LOG_FILE" >&2; }
+set -uo pipefail
+
+LOG_FILE="\${LOG_FILE:-/tmp/vps-init-rollback.log}"
+log() {
+  printf '%s [ROLLBACK] %s\n' "\$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "\$*" | tee -a "\$LOG_FILE" >&2
+}
+
+DIR="$ROLLBACK_DIR"
+
+if [[ ! -d "\$DIR" ]]; then
+  log "Rollback steps directory not found: \$DIR"
+  exit 1
+fi
+
+log "Starting rollback execution from: \$DIR"
+errors=0
+
+# Execute steps in reverse numerical order (LIFO)
+while IFS= read -r step_file; do
+  [[ -n "\$step_file" && -f "\$step_file" ]] || continue
+  log "Executing rollback step: \$(basename "\$step_file")"
+  if bash "\$step_file"; then
+    log "Step completed successfully: \$(basename "\$step_file")"
+  else
+    log "WARNING: Step reported error: \$(basename "\$step_file") (continuing remaining steps)"
+    errors=\$((errors + 1))
+  fi
+done < <(find "\$DIR" -maxdepth 1 -name '*.step' | sort -r)
+
+if (( errors > 0 )); then
+  log "Rollback completed with \$errors warning(s). Inspect \$LOG_FILE"
+  exit 1
+else
+  log "Rollback completed successfully"
+fi
 EOF
+
+  chmod 700 "$ROLLBACK_FILE"
+  chown root:root "$ROLLBACK_FILE" 2>/dev/null || true
   ROLLBACK_READY="yes"
 }
 
 add_rollback() {
   local label="$1"
   local command="$2"
-  local tmp="${ROLLBACK_FILE}.tmp"
-  {
-    sed '1,/^log()/!d' "$ROLLBACK_FILE"
-    printf '\nlog %q\n%s\n' "$label" "$command"
-    sed '1,/^log()/d' "$ROLLBACK_FILE"
-  } > "$tmp"
-  chmod 700 "$tmp"
-  chown root:root "$tmp"
-  mv -f "$tmp" "$ROLLBACK_FILE"
-  log_info "Rollback registered: $label"
+
+  if [[ -z "${ROLLBACK_DIR:-}" || ! -d "$ROLLBACK_DIR" ]]; then
+    return 0
+  fi
+
+  ROLLBACK_STEP_COUNTER=$((ROLLBACK_STEP_COUNTER + 1))
+  local step_filename
+  step_filename="$(printf '%05d.step' "$ROLLBACK_STEP_COUNTER")"
+  local step_path="$ROLLBACK_DIR/$step_filename"
+
+  cat > "$step_path" <<EOF
+#!/usr/bin/env bash
+# Label: $label
+printf '%s [ROLLBACK-ACTION] %s\n' "\$(date -u '+%Y-%m-%dT%H:%M:%SZ')" $(printf '%q' "$label")
+$command
+EOF
+
+  chmod 700 "$step_path"
+  chown root:root "$step_path" 2>/dev/null || true
+
+  log_info "Rollback registered (#$ROLLBACK_STEP_COUNTER): $label"
 }
 
 checkpoint() {
@@ -70,7 +122,9 @@ on_error() {
   log_error "Failure at line $line while running: $cmd (exit $status)"
   run_rollback
   log_error "Execution failed. Review log: $LOG_FILE"
-  log_error "Manual rollback script retained at: $ROLLBACK_FILE"
+  if [[ -n "${ROLLBACK_FILE:-}" && -f "$ROLLBACK_FILE" ]]; then
+    log_error "Manual rollback script retained at: $ROLLBACK_FILE"
+  fi
   exit "$status"
 }
 
@@ -80,7 +134,7 @@ run_rollback() {
     if LOG_FILE="$LOG_FILE" bash "$ROLLBACK_FILE"; then
       log_warn "Rollback completed"
     else
-      log_error "Rollback had errors. Inspect $LOG_FILE and $ROLLBACK_FILE"
+      log_error "Rollback had warnings/errors. Inspect $LOG_FILE and $ROLLBACK_FILE"
     fi
   else
     log_warn "No rollback actions registered"
@@ -89,6 +143,11 @@ run_rollback() {
 
 mark_success() {
   touch "$STATE_DIR/success"
-  rm -f "$ROLLBACK_FILE"
+  if [[ -n "${ROLLBACK_FILE:-}" && -f "$ROLLBACK_FILE" ]]; then
+    rm -f "$ROLLBACK_FILE"
+  fi
+  if [[ -n "${ROLLBACK_DIR:-}" && -d "$ROLLBACK_DIR" ]]; then
+    rm -rf "$ROLLBACK_DIR"
+  fi
   log_ok "All stages completed"
 }

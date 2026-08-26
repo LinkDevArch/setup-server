@@ -9,10 +9,15 @@ source "$PROJECT_DIR/lib/config.sh"
 source "$PROJECT_DIR/lib/backup.sh"
 source "$PROJECT_DIR/lib/validate.sh"
 source "$PROJECT_DIR/lib/packages.sh"
+source "$PROJECT_DIR/lib/timesync.sh"
+source "$PROJECT_DIR/lib/sysctl.sh"
+source "$PROJECT_DIR/lib/system_hardening.sh"
+source "$PROJECT_DIR/lib/updates.sh"
 source "$PROJECT_DIR/lib/users.sh"
 source "$PROJECT_DIR/lib/firewall.sh"
 source "$PROJECT_DIR/lib/ssh.sh"
 source "$PROJECT_DIR/lib/fail2ban.sh"
+source "$PROJECT_DIR/lib/audit.sh"
 source "$PROJECT_DIR/lib/docker.sh"
 source "$PROJECT_DIR/lib/dokploy.sh"
 source "$PROJECT_DIR/lib/cloudflared.sh"
@@ -20,6 +25,13 @@ source "$PROJECT_DIR/lib/postcheck.sh"
 
 main() {
   bootstrap_config "$@"
+
+  if [[ "$DRY_RUN" == "yes" ]]; then
+    validate_config
+    show_plan
+    exit 0
+  fi
+
   validate_root
   init_logging
   init_lock
@@ -36,20 +48,20 @@ main() {
   load_or_prompt_config
   validate_config
 
-  if [[ "$DRY_RUN" == "yes" ]]; then
-    show_plan
-    exit 0
-  fi
-
   confirm_execution
   prepare_state_dirs
   record_run_config
 
   stage_system_packages
+  stage_timesync
+  stage_sysctl
+  stage_system_hardening
+  stage_updates
   stage_admin_user
   stage_firewall
   stage_ssh_hardening
   stage_fail2ban
+  stage_audit
 
   if is_yes "$INSTALL_DOCKER" || is_yes "$INSTALL_DOKPLOY"; then
     stage_docker

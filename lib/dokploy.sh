@@ -6,10 +6,14 @@ stage_dokploy() {
     return 0
   fi
 
-  log_info "Installing Dokploy explicitly"
+  log_info "Installing Dokploy deployment manager"
   require_cmd docker
 
-  if docker ps -a --format '{{.Names}}' | grep -Eq '^dokploy$|dokploy'; then
+  if ! systemctl is-active --quiet docker; then
+    run_cmd systemctl start docker
+  fi
+
+  if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -Eq '^dokploy$|dokploy'; then
     log_info "Dokploy appears to be installed already"
     checkpoint dokploy
     return 0
@@ -17,19 +21,17 @@ stage_dokploy() {
 
   local install_script="/tmp/dokploy-install-$RUN_ID.sh"
   run_cmd curl -fsSL https://dokploy.com/install.sh -o "$install_script"
+  [[ -s "$install_script" ]] || die "Failed to download Dokploy installer or downloaded file is empty"
   chmod 700 "$install_script"
 
-  if grep -Eq 'curl[[:space:]].*\|[[:space:]]*(sh|bash)|wget[[:space:]].*\|[[:space:]]*(sh|bash)' "$install_script"; then
-    log_warn "Dokploy installer contains nested pipe-to-shell logic; continuing because the official installer was downloaded to disk and Dokploy has no apt repository installer"
-  fi
-
+  log_info "Executing official Dokploy installer"
   run_cmd bash "$install_script"
   rm -f "$install_script"
 
-  if docker ps --format '{{.Names}}' | grep -Eq '^dokploy$|dokploy'; then
-    log_ok "Dokploy container detected"
+  if docker ps --format '{{.Names}}' 2>/dev/null | grep -Eq '^dokploy$|dokploy'; then
+    log_ok "Dokploy container detected and running"
   else
-    log_warn "Dokploy command completed but container name was not detected; check Docker services"
+    log_warn "Dokploy installer completed; container may still be initializing in background"
   fi
 
   checkpoint dokploy

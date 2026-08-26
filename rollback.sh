@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+[[ "${EUID:-$(id -u)}" -eq 0 ]] || { echo "Run as root: sudo bash rollback.sh" >&2; exit 1; }
+
 STATE_DIR="${STATE_DIR:-/var/lib/vps-init-hardening}"
 LOG_FILE="${LOG_FILE:-/var/log/vps-init-hardening/manual-rollback-$(date -u +%Y%m%dT%H%M%SZ).log}"
 
@@ -15,4 +17,3 @@ fi
 
 echo "Running rollback script: $latest"
 LOG_FILE="$LOG_FILE" bash "$latest"
-

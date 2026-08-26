@@ -15,16 +15,15 @@ backup_path() {
 
   if [[ -e "$path" ]]; then
     mkdir -p "$SYSTEM_BACKUP_DIR/$RUN_ID"
-    if [[ -d "$path" ]]; then
-      cp -a "$path" "$dest"
-    else
-      cp -a "$path" "$dest"
-    fi
+    cp -a "$path" "$dest"
     log_info "Backup created: $path -> $dest"
-    add_rollback "restore $path" "if [[ -e '$dest' ]]; then rm -rf '$path'; cp -a '$dest' '$path'; fi"
+    if [[ -d "$dest" ]]; then
+      add_rollback "restore directory $path" "if [[ -d '$dest' ]]; then rm -rf '$path'; mkdir -p '$path'; cp -a '$dest/.' '$path/'; fi"
+    else
+      add_rollback "restore file $path" "if [[ -f '$dest' ]]; then mkdir -p '$(dirname "$path")'; cp -a '$dest' '$path'; fi"
+    fi
   else
     log_info "Path does not exist before change: $path"
-    add_rollback "remove newly created $path" "rm -rf '$path'"
+    add_rollback "remove newly created $path" "if [[ -e '$path' ]]; then rm -rf '$path'; fi"
   fi
 }
-
