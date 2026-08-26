@@ -213,6 +213,40 @@ load_or_prompt_config() {
   if is_yes "$INSTALL_CLOUDFLARED"; then
     prompt_secret_if_empty CLOUDFLARED_TOKEN "Cloudflare Tunnel token"
   fi
+
+  # Check if SSH public key exists for the admin user
+  local has_key="no"
+  if [[ -n "${SSH_PUBLIC_KEY_FILE:-}" && -s "$SSH_PUBLIC_KEY_FILE" ]]; then
+    has_key="yes"
+  elif [[ -s /root/.ssh/authorized_keys ]]; then
+    has_key="yes"
+  fi
+
+  if [[ "$has_key" == "no" ]]; then
+    printf '\n%s\n' "${yellow}[!] No SSH public key found in /root/.ssh/authorized_keys.${reset}"
+    printf '%s\n' "Because root and password logins will be disabled, an SSH public key is required to avoid lockout."
+    printf '%s\n' "Please paste your public key (e.g. from ~/.ssh/id_ed25519.pub or ~/.ssh/id_rsa.pub on your PC):"
+    local pasted_key=""
+    read -r -p "SSH Public Key: " pasted_key
+    if [[ -n "$pasted_key" ]]; then
+      local tmp_key
+      tmp_key="$(mktemp)"
+      printf '%s\n' "$pasted_key" > "$tmp_key"
+      if command -v ssh-keygen >/dev/null 2>&1 && ssh-keygen -l -f "$tmp_key" >/dev/null 2>&1; then
+        mkdir -p /root/.ssh
+        chmod 700 /root/.ssh
+        printf '%s\n' "$pasted_key" >> /root/.ssh/authorized_keys
+        chmod 600 /root/.ssh/authorized_keys
+        log_ok "SSH public key saved to /root/.ssh/authorized_keys"
+      else
+        rm -f "$tmp_key"
+        die "The pasted key is not a valid SSH public key. Format: ssh-ed25519 AAAAC3... or ssh-rsa AAAAB3..."
+      fi
+      rm -f "$tmp_key"
+    else
+      die "An SSH public key is mandatory to prevent permanent server lockout"
+    fi
+  fi
 }
 
 validate_config() {
@@ -248,6 +282,14 @@ validate_config() {
       die "CLOUDFLARED_TOKEN must be provided in environment for non-interactive cloudflared install"
     fi
     die "Cloudflare Tunnel token is required when Cloudflare Tunnel is selected"
+  fi
+
+  if [[ "$DRY_RUN" != "yes" ]]; then
+    if [[ -n "${SSH_PUBLIC_KEY_FILE:-}" ]]; then
+      [[ -s "$SSH_PUBLIC_KEY_FILE" ]] || die "SSH public key file is empty or not readable: $SSH_PUBLIC_KEY_FILE"
+    else
+      [[ -s /root/.ssh/authorized_keys ]] || die "Missing /root/.ssh/authorized_keys. Add a public key first or pass --ssh-public-key-file"
+    fi
   fi
 }
 

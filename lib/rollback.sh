@@ -129,6 +129,11 @@ on_error() {
 }
 
 run_rollback() {
+  if [[ "${IN_ROLLBACK:-no}" == "yes" ]]; then
+    return 0
+  fi
+  IN_ROLLBACK="yes"
+
   if [[ -n "${ROLLBACK_FILE:-}" && -s "$ROLLBACK_FILE" ]]; then
     log_warn "Starting rollback in reverse registration order"
     if LOG_FILE="$LOG_FILE" bash "$ROLLBACK_FILE"; then
