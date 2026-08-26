@@ -5,8 +5,8 @@ SSH_DROPIN="/etc/ssh/sshd_config.d/00-vps-hardening.conf"
 OLD_SSH_DROPIN="/etc/ssh/sshd_config.d/99-vps-hardening.conf"
 
 stage_ssh_hardening() {
-  if has_checkpoint ssh; then
-    log_info "Skipping SSH stage; checkpoint exists"
+  if has_checkpoint ssh && [[ -f "$SSH_DROPIN" ]] && (systemctl is-active --quiet ssh.service || systemctl is-active --quiet ssh.socket); then
+    log_info "Skipping SSH stage; checkpoint, configuration, and service exist"
     return 0
   fi
 

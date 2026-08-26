@@ -20,8 +20,8 @@ validate_authorized_keys_file() {
 }
 
 stage_admin_user() {
-  if has_checkpoint admin-user; then
-    log_info "Skipping admin user stage; checkpoint exists"
+  if has_checkpoint admin-user && id "$NEW_ADMIN_USER" >/dev/null 2>&1 && [[ -s "/home/$NEW_ADMIN_USER/.ssh/authorized_keys" ]]; then
+    log_info "Skipping admin user stage; checkpoint and admin user exist"
     return 0
   fi
 

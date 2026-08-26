@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 stage_docker() {
-  if has_checkpoint docker; then
-    log_info "Skipping Docker stage; checkpoint exists"
+  if has_checkpoint docker && command -v docker >/dev/null 2>&1 && systemctl is-active --quiet docker; then
+    log_info "Skipping Docker stage; checkpoint exists and docker service is active"
     return 0
   fi
 

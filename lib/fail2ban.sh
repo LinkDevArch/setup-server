@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 stage_fail2ban() {
-  if has_checkpoint fail2ban; then
-    log_info "Skipping Fail2Ban stage; checkpoint exists"
+  if has_checkpoint fail2ban && systemctl is-active --quiet fail2ban; then
+    log_info "Skipping Fail2Ban stage; checkpoint exists and service is active"
     return 0
   fi
 

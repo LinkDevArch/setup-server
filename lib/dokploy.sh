@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 stage_dokploy() {
-  if has_checkpoint dokploy; then
-    log_info "Skipping Dokploy stage; checkpoint exists"
+  if has_checkpoint dokploy && docker ps --format '{{.Names}}' 2>/dev/null | grep -Eq '^dokploy$|dokploy'; then
+    log_info "Skipping Dokploy stage; checkpoint exists and dokploy container is running"
     return 0
   fi
 

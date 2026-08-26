@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 stage_firewall() {
-  if has_checkpoint firewall; then
-    log_info "Skipping firewall stage; checkpoint exists"
+  if has_checkpoint firewall && ufw status 2>/dev/null | grep -q "Status: active"; then
+    log_info "Skipping firewall stage; checkpoint exists and UFW is active"
     return 0
   fi
 
