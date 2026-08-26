@@ -34,7 +34,20 @@ EOF
   mkdir -p /etc/docker
   backup_path /etc/docker/daemon.json
 
-  atomic_write_file /etc/docker/daemon.json 600 root root <<'EOF'
+  # Note: live-restore is strictly incompatible with Docker Swarm (used by Dokploy)
+  if is_yes "$INSTALL_DOKPLOY"; then
+    atomic_write_file /etc/docker/daemon.json 600 root root <<'EOF'
+{
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "3"
+  },
+  "userland-proxy": false
+}
+EOF
+  else
+    atomic_write_file /etc/docker/daemon.json 600 root root <<'EOF'
 {
   "log-driver": "json-file",
   "log-opts": {
@@ -45,6 +58,7 @@ EOF
   "userland-proxy": false
 }
 EOF
+  fi
 
   # Apply UFW firewall protection against Docker port bypass
   if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then

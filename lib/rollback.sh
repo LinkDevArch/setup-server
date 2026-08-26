@@ -120,8 +120,13 @@ on_error() {
   local status="$3"
   trap - ERR
   log_error "Failure at line $line while running: $cmd (exit $status)"
+  if [[ -n "${LOG_FILE:-}" && -f "$LOG_FILE" ]]; then
+    log_error "--- Last 25 lines of execution log ($LOG_FILE) ---"
+    tail -n 25 "$LOG_FILE" >&2 || true
+    log_error "--- End of execution log snippet ---"
+  fi
   run_rollback
-  log_error "Execution failed. Review log: $LOG_FILE"
+  log_error "Execution failed. Review full log: $LOG_FILE"
   if [[ -n "${ROLLBACK_FILE:-}" && -f "$ROLLBACK_FILE" ]]; then
     log_error "Manual rollback script retained at: $ROLLBACK_FILE"
   fi
