@@ -30,10 +30,14 @@ stage_dokploy() {
 
   # Open required Dokploy and Docker Swarm ports in UFW
   if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active"; then
-    log_info "Ensuring Dokploy and Swarm ports are permitted in firewall"
-    run_cmd ufw allow 80/tcp comment "dokploy traefik http"
-    run_cmd ufw allow 443/tcp comment "dokploy traefik https"
-    run_cmd ufw allow "${DOKPLOY_PORT:-3000}/tcp" comment "dokploy dashboard"
+    if [[ "$FIREWALL_MODE" == "traditional" ]]; then
+      log_info "Opening public web and Dokploy ports in traditional firewall mode"
+      run_cmd ufw allow 80/tcp comment "dokploy traefik http"
+      run_cmd ufw allow 443/tcp comment "dokploy traefik https"
+      run_cmd ufw allow "${DOKPLOY_PORT:-3000}/tcp" comment "dokploy dashboard"
+    else
+      log_info "Safe / Zero-Trust firewall mode active: public web ports 80/443/3000 kept closed for Cloudflare Tunnel"
+    fi
     run_cmd ufw allow 2377/tcp comment "dokploy swarm cluster"
     run_cmd ufw allow 7946/tcp comment "dokploy swarm node"
     run_cmd ufw allow 7946/udp comment "dokploy swarm node"
