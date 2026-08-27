@@ -11,6 +11,7 @@ stage_system_packages() {
   export NEEDRESTART_MODE=a
 
   run_cmd apt-get update -y
+  run_cmd apt-get upgrade -y
 
   local required=(
     ca-certificates
