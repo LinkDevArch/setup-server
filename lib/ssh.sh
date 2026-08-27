@@ -73,6 +73,8 @@ HostbasedAuthentication no
 X11Forwarding no
 AllowTcpForwarding yes
 AllowAgentForwarding no
+UseDNS no
+GSSAPIAuthentication no
 
 # Modern Cryptographic Suites (CIS Benchmark / RFC 4253 recommendations)
 KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group-exchange-sha256
