@@ -35,13 +35,13 @@ stage_dokploy() {
       run_cmd ufw allow 80/tcp comment "dokploy traefik http"
       run_cmd ufw allow 443/tcp comment "dokploy traefik https"
       run_cmd ufw allow "${DOKPLOY_PORT:-3000}/tcp" comment "dokploy dashboard"
+      run_cmd ufw allow 2377/tcp comment "dokploy swarm cluster"
+      run_cmd ufw allow 7946/tcp comment "dokploy swarm node"
+      run_cmd ufw allow 7946/udp comment "dokploy swarm node"
+      run_cmd ufw allow 4789/udp comment "dokploy swarm overlay"
     else
-      log_info "Safe / Zero-Trust firewall mode active: public web ports 80/443/3000 kept closed for Cloudflare Tunnel"
+      log_info "Safe / Zero-Trust firewall mode active: all incoming ports kept closed (Cloudflare Tunnel routes locally)"
     fi
-    run_cmd ufw allow 2377/tcp comment "dokploy swarm cluster"
-    run_cmd ufw allow 7946/tcp comment "dokploy swarm node"
-    run_cmd ufw allow 7946/udp comment "dokploy swarm node"
-    run_cmd ufw allow 4789/udp comment "dokploy swarm overlay"
   fi
 
   # Auto-detect local gateway IP for Swarm advertise address
