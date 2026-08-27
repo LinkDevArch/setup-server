@@ -108,8 +108,9 @@ handle_ssh_service_and_socket() {
     log_info "Custom SSH port ($SSH_PORT) detected: disabling ssh.socket and enabling standalone ssh.service"
     if systemctl list-unit-files ssh.socket >/dev/null 2>&1; then
       if systemctl is-enabled --quiet ssh.socket || systemctl is-active --quiet ssh.socket; then
-        add_rollback "re-enable ssh.socket" "systemctl enable --now ssh.socket >/dev/null 2>&1 || true"
+        add_rollback "re-enable ssh.socket" "systemctl unmask ssh.socket >/dev/null 2>&1 || true; systemctl enable --now ssh.socket >/dev/null 2>&1 || true"
         run_cmd systemctl disable --now ssh.socket
+        run_cmd systemctl mask ssh.socket
       fi
     fi
 
