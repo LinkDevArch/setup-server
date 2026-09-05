@@ -22,11 +22,20 @@ stage_ssh_hardening() {
     rm -f "$OLD_SSH_DROPIN"
   fi
 
+  # Ensure default host keys exist (fresh Ubuntu instances may lack them until first start)
+  if command -v ssh-keygen >/dev/null 2>&1; then
+    run_cmd ssh-keygen -A || true
+  fi
+
   ensure_sshd_include
   write_sshd_dropin
 
   # Strictly test SSH configuration syntax before touching running services
-  run_cmd sshd -t || die "sshd -t validation failed for $SSH_DROPIN"
+  if ! sshd -t >> "$LOG_FILE" 2>&1; then
+    log_error "sshd -t syntax validation failed! Output:"
+    sshd -t >&2 || true
+    die "sshd -t validation failed for $SSH_DROPIN"
+  fi
 
   handle_ssh_service_and_socket
   checkpoint ssh
@@ -74,7 +83,6 @@ X11Forwarding no
 AllowTcpForwarding yes
 AllowAgentForwarding no
 UseDNS no
-GSSAPIAuthentication no
 
 # Modern Cryptographic Suites (CIS Benchmark / RFC 4253 recommendations)
 KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group-exchange-sha256

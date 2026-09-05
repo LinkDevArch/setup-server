@@ -65,6 +65,11 @@ log_ok() { log_line OK "$@"; }
 
 die() {
   log_error "$*"
+  if [[ -n "${LOG_FILE:-}" && -f "$LOG_FILE" ]]; then
+    log_error "--- Last 25 lines of execution log ($LOG_FILE) ---"
+    tail -n 25 "$LOG_FILE" >&2 || true
+    log_error "--- End of execution log snippet ---"
+  fi
   if [[ "${ROLLBACK_READY:-no}" == "yes" ]]; then
     run_rollback
     log_error "Execution failed. Review log: $LOG_FILE"
