@@ -112,28 +112,9 @@ handle_ssh_service_and_socket() {
       fi
     fi
   else
-    # Custom port requires stopping, disabling and masking ssh.socket on Ubuntu 24.04 to prevent port 22 binding conflict
-    log_info "Custom SSH port ($SSH_PORT) detected: stopping and masking ssh.socket, enabling standalone ssh.service"
-    if systemctl list-unit-files ssh.socket >/dev/null 2>&1; then
-      add_rollback "re-enable ssh.socket" "systemctl unmask ssh.socket >/dev/null 2>&1 || true; systemctl enable --now ssh.socket >/dev/null 2>&1 || true"
-      run_cmd systemctl stop ssh.socket || true
-      run_cmd systemctl disable --now ssh.socket || true
-      run_cmd systemctl mask ssh.socket || true
-    fi
-
-    # Clean up any orphaned sshd daemon processes lingering on port 22
-    if command -v fuser >/dev/null 2>&1; then
-      fuser -k 22/tcp >/dev/null 2>&1 || true
-    fi
-    local old_pids
-    old_pids="$(ss -tulpn 2>/dev/null | awk '/:22 / {print $7}' | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u)"
-    for pid in $old_pids; do
-      if [[ -n "$pid" && "$pid" != "$$" ]]; then
-        log_info "Terminating legacy sshd process on port 22 (PID $pid)"
-        kill -9 "$pid" >/dev/null 2>&1 || true
-      fi
-    done
-
+    # Custom port: Enable and start standalone ssh.service FIRST before stopping ssh.socket
+    log_info "Custom SSH port ($SSH_PORT) detected: enabling standalone ssh.service and disabling ssh.socket"
+    
     run_cmd systemctl daemon-reload
     run_cmd systemctl enable --now ssh.service
     run_cmd systemctl restart ssh.service
@@ -141,6 +122,14 @@ handle_ssh_service_and_socket() {
 
     if ! systemctl is-active --quiet ssh.service; then
       die "ssh.service is not active on custom port $SSH_PORT"
+    fi
+
+    # Mask ssh.socket to prevent Ubuntu 24.04 from binding port 22 on reboot
+    if systemctl list-unit-files ssh.socket >/dev/null 2>&1; then
+      add_rollback "re-enable ssh.socket" "systemctl unmask ssh.socket >/dev/null 2>&1 || true; systemctl enable --now ssh.socket >/dev/null 2>&1 || true"
+      run_cmd systemctl disable ssh.socket || true
+      run_cmd systemctl mask ssh.socket || true
+      run_cmd systemctl stop ssh.socket || true
     fi
   fi
 }
