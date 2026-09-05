@@ -37,8 +37,9 @@ EOF
 
   run_cmd_secret "cloudflared service install <redacted-token>" cloudflared service install "$CLOUDFLARED_TOKEN"
 
-  # Protect the generated service file containing credentials
+  # Enforce rock-solid HTTP/2 TCP protocol to prevent QUIC/UDP packet drops on VPS hosts
   if [[ -f /etc/systemd/system/cloudflared.service ]]; then
+    sed -i 's/tunnel run/tunnel --protocol http2 run/' /etc/systemd/system/cloudflared.service
     chmod 600 /etc/systemd/system/cloudflared.service
   fi
 
